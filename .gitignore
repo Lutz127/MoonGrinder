@@ -1,0 +1,32 @@
+# Public website data. Only sanitized website/reviewer data belongs in this repository.
+data/*
+!data/catalog.json
+!data/time_review.json
+!data/time_review_accepted.json
+
+# Never commit private desktop or Geometry Dash data.
+friend_leaderboards_private.json
+level_times.json
+progress.json
+sessions.json
+settings.json
+levels.json
+CCGameManager.dat
+CCLocalLevels.dat
+backups/
+**/backups/
+
+# Generated/binary working files.
+*.rar
+*.zip
+*.7z
+*.xlsx
+*.xls
+*.exe
+*.log
+
+# Local tooling files.
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db

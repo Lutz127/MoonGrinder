@@ -1,0 +1,10 @@
+{
+  "name": "moongrinder-web",
+  "private": true,
+  "version": "1.1.0",
+  "type": "module",
+  "scripts": {
+    "check": "node tools/smoke_test.mjs",
+    "check:public": "python tools/check_public_repo.py"
+  }
+}

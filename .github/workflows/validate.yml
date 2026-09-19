@@ -1,0 +1,28 @@
+name: Validate MoonGrinder
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check public repository safety
+        run: python tools/check_public_repo.py
+      - name: Check Python tool syntax
+        run: python -m py_compile tools/check_public_repo.py tools/time_reviewer.py tools/update_data.py
+      - name: Check deployed JavaScript syntax
+        run: for file in assets/js/v2/*.js; do node --check "$file"; done
+      - name: Run smoke test
+        run: npm run check
