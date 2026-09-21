@@ -318,7 +318,7 @@ async function checkBridge(app, notify = false) {
       if (navigator.permissions?.query) {
         const permission = await navigator.permissions.query({ name: 'loopback-network' });
         if (permission.state === 'denied') {
-          message = 'Browser access to this computer is blocked for MoonGrinder. Open this site's permissions and allow local/loopback network access, then try again.';
+          message = "Browser access to this computer is blocked for MoonGrinder. Open this site's permissions and allow local/loopback network access, then try again.";
         } else if (permission.state === 'prompt') {
           message = 'MoonGrinder needs permission to connect to the local uploader on this computer. Click Check connection again and allow local network access if your browser asks.';
         }
