@@ -184,7 +184,10 @@ function bridgeMarkup(bridge) {
   if (bridge?.checking) {
     return `<div class="gd-list-bridge-status checking"><span class="bridge-dot"></span><div><strong>Checking local uploader</strong><span>Looking for the MoonGrinder helper on this computer.</span></div></div>`;
   }
-  return `<div class="gd-list-bridge-status offline"><span class="bridge-dot"></span><div><strong>Local uploader is not connected</strong><span>Run <code>tools\\gd_list_bridge.bat</code> on Windows or <code>tools/gd_list_bridge.sh</code> on macOS/Linux, then check again. The helper reads your local Geometry Dash save and performs the upload without exposing your login data to the website.</span></div></div>`;
+  const detail = bridge?.error
+    ? `<span>${escapeHtml(bridge.error)}</span>`
+    : `<span>Run <code>tools\\gd_list_bridge.bat</code> on Windows or <code>tools/gd_list_bridge.sh</code> on macOS/Linux, then check again. The helper reads your local Geometry Dash save and performs the upload without exposing your login data to the website.</span>`;
+  return `<div class="gd-list-bridge-status offline"><span class="bridge-dot"></span><div><strong>Local uploader is not connected</strong>${detail}</div></div>`;
 }
 
 function draftSummary(app, levels) {
@@ -286,7 +289,7 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 1800) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(url, { ...options, targetAddressSpace: 'local', signal: controller.signal, cache: 'no-store' });
+    return await fetch(url, { ...options, targetAddressSpace: 'loopback', signal: controller.signal, cache: 'no-store' });
   } finally {
     clearTimeout(timer);
   }
@@ -309,9 +312,25 @@ async function checkBridge(app, notify = false) {
       platform: data.platform || '',
     };
     if (notify) app.toast('Local Geometry Dash uploader connected.');
-  } catch {
-    app.viewState.gdListBridge = { connected: false, checking: false, token: null };
-    if (notify) app.toast('Local uploader not found. Run the helper and try again.', 'error');
+  } catch (error) {
+    let message = 'The helper is running, but the browser could not reach it.';
+    try {
+      if (navigator.permissions?.query) {
+        const permission = await navigator.permissions.query({ name: 'loopback-network' });
+        if (permission.state === 'denied') {
+          message = 'Browser access to this computer is blocked for MoonGrinder. Open this site's permissions and allow local/loopback network access, then try again.';
+        } else if (permission.state === 'prompt') {
+          message = 'MoonGrinder needs permission to connect to the local uploader on this computer. Click Check connection again and allow local network access if your browser asks.';
+        }
+      }
+    } catch {
+      // Older browsers may not expose the loopback-network permission name.
+    }
+    if (error?.name === 'AbortError') {
+      message = 'The local uploader did not answer before the connection timed out. Make sure the helper window is still open.';
+    }
+    app.viewState.gdListBridge = { connected: false, checking: false, token: null, error: message };
+    if (notify) app.toast(message, 'error');
   }
   if (statusRoot) statusRoot.innerHTML = bridgeMarkup(app.viewState.gdListBridge);
   const upload = app.main.querySelector('#gd-list-upload');
