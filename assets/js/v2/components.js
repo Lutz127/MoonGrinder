@@ -1,4 +1,26 @@
-import { difficultyAsset, difficultyBaseAsset, escapeHtml, formatDuration, formatNumber } from './utils.js';
+import {
+  difficultyAsset,
+  difficultyBaseAsset,
+  escapeHtml,
+  formatDuration,
+  formatNumber,
+  gdBrowserLevelUrl,
+  gdBrowserUserUrl,
+} from './utils.js';
+
+function externalAttrs() {
+  return 'target="_blank" rel="noopener noreferrer"';
+}
+
+export function levelExternalLink(level, className = 'gd-external-link') {
+  return `<a class="${className}" href="${gdBrowserLevelUrl(level?.level_id)}" ${externalAttrs()} title="Open ${escapeHtml(level?.name || 'level')} on GDBrowser">${escapeHtml(level?.name || 'Unknown level')}</a>`;
+}
+
+export function creatorExternalLink(level, className = 'gd-external-link gd-creator-link') {
+  const creator = String(level?.creator || '').trim();
+  if (!creator) return '<span>Unknown creator</span>';
+  return `<a class="${className}" href="${gdBrowserUserUrl(creator)}" ${externalAttrs()} title="Open ${escapeHtml(creator)} on GDBrowser">${escapeHtml(creator)}</a>`;
+}
 
 export function moonReward(moons, extraClass = '') {
   return `<span class="moon-reward ${extraClass}" data-moons="${Number(moons) || 0}"><img src="./assets/images/moon.png" alt="" aria-hidden="true"><span>${formatNumber(moons)}</span></span>`;
@@ -12,7 +34,6 @@ export function difficultyFace(level, size = 'md') {
   const fallbackHandler = source === fallback ? '' : ` onerror="this.onerror=null;this.src='${fallback}'"`;
   return `<img class="difficulty-face difficulty-face-${size}" src="${source}" alt="${escapeHtml(rating)} ${escapeHtml(difficulty)} difficulty icon"${fallbackHandler}>`;
 }
-
 
 export function ratingBadge(rating) {
   const safe = String(rating || 'Rated');
@@ -47,10 +68,10 @@ export function levelRow(catalog, level, state, options = {}) {
     </div>` : '';
 
   return `<article class="level-row ${showActions ? '' : 'level-row-compact'}" data-level-id="${level.level_id}">
-    <button class="level-main-button" data-action="level-detail" data-level-id="${level.level_id}" aria-label="Open ${escapeHtml(level.name)} details">
+    <div class="level-main-button">
       ${difficultyFace(level, 'sm')}
-      <span class="level-identity"><strong>${escapeHtml(level.name)}</strong><span>by ${escapeHtml(level.creator || 'Unknown creator')} · ID ${escapeHtml(level.level_id)}</span></span>
-    </button>
+      <span class="level-identity"><strong>${levelExternalLink(level)}</strong><span>by ${creatorExternalLink(level)} · ID ${escapeHtml(level.level_id)}</span></span>
+    </div>
     <div class="level-row-moons">${moonReward(level.moons)}</div>
     <div class="level-row-time"><strong>${formatDuration(time.seconds, { compact: true })}</strong><span>estimated time</span></div>
     <div class="level-row-rate"><strong>${efficiency ? `${formatNumber(efficiency, 2)}/min` : 'Unknown'}</strong><span>moons per minute</span></div>
@@ -64,11 +85,11 @@ export function levelCard(catalog, level, state) {
   const efficiency = catalog.efficiency(level, state);
   const time = catalog.timeFor(level, state);
   return `<article class="level-card" data-level-id="${level.level_id}">
-    <button class="level-card-open" data-action="level-detail" data-level-id="${level.level_id}">
-      <div class="level-card-top">${difficultyFace(level, 'lg')}<div class="level-card-title"><span class="eyebrow">${escapeHtml(level.difficulty || 'N/A')}</span><h3>${escapeHtml(level.name)}</h3><p>by ${escapeHtml(level.creator || 'Unknown creator')}</p></div>${ratingBadge(level.rating)}</div>
+    <div class="level-card-open">
+      <div class="level-card-top">${difficultyFace(level, 'lg')}<div class="level-card-title"><span class="eyebrow">${escapeHtml(level.difficulty || 'N/A')}</span><h3>${levelExternalLink(level)}</h3><p>by ${creatorExternalLink(level)}</p></div>${ratingBadge(level.rating)}</div>
       <div class="level-card-stats"><div><span>Reward</span>${moonReward(level.moons)}</div><div><span>Estimated time</span><strong>${formatDuration(time.seconds, { compact: true })}</strong></div><div><span>Efficiency</span><strong>${efficiency ? `${formatNumber(efficiency, 2)}/min` : 'Unknown'}</strong></div></div>
-      <div class="level-card-footer"><span>ID ${escapeHtml(level.level_id)}</span>${statusBadge(status)}</div>
-    </button>
+      <div class="level-card-footer"><span>ID ${escapeHtml(level.level_id)}</span><div class="level-card-footer-actions">${statusBadge(status)}<button class="button button-ghost button-small" data-action="level-detail" data-level-id="${level.level_id}">Details</button></div></div>
+    </div>
   </article>`;
 }
 
@@ -83,7 +104,7 @@ export function planLevelList(catalog, plan, state) {
   if (!plan?.levels?.length) return emptyState('No levels match these settings.', 'Try changing the filters.');
   return `<div class="plan-level-list">${plan.levels.map((level, index) => {
     const time = catalog.timeFor(level, state);
-    return `<div class="plan-level-item"><span class="plan-index">${index + 1}</span>${difficultyFace(level, 'xs')}<button data-action="level-detail" data-level-id="${level.level_id}"><strong>${escapeHtml(level.name)}</strong><span>${escapeHtml(level.creator || 'Unknown creator')}</span></button><span>${moonReward(level.moons)}</span><span class="plan-time">${formatDuration(time.seconds, { compact: true })}</span></div>`;
+    return `<div class="plan-level-item"><span class="plan-index">${index + 1}</span>${difficultyFace(level, 'xs')}<div class="plan-level-identity"><strong>${levelExternalLink(level)}</strong><span>by ${creatorExternalLink(level)}</span></div><span>${moonReward(level.moons)}</span><span class="plan-time">${formatDuration(time.seconds, { compact: true })}</span><button class="plan-detail-button" data-action="level-detail" data-level-id="${level.level_id}" type="button">Details</button></div>`;
   }).join('')}</div>`;
 }
 

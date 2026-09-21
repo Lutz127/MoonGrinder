@@ -57,6 +57,7 @@ export const ROUTES = [
   ['planner', 'Planner'],
   ['catalog', 'Catalog'],
   ['grind', 'Grind'],
+  ['gd-lists', 'GD Lists'],
   ['progress', 'Progress'],
   ['moon-check', 'Moon Check'],
   ['stats', 'Stats'],

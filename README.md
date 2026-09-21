@@ -11,11 +11,16 @@ No backend, framework, database, account, or build step is required.
 - Time-budget and moon-goal planners
 - Fastest-first or most-efficient planning
 - Grinding block builder and timed grinding sessions
+- GD Lists builder with shortest, most-efficient, planner, grinding-block, and custom sources
+- One-click conversion of planner results and grinding blocks into GD List drafts
+- Local GD List uploader with Public, Unlisted, Friends-only, difficulty, description, ordering, and update controls
 - Persistent local completed, skipped, excluded, and custom-time state
 - Optional global exclusion of Easy, Medium, Hard, Insane, and Extreme Demon from planners/blocks
 - Optional planner splits for Hard 4/5 moons, Harder 6/7 moons, and Insane 8/9 moons, while retaining the normal whole-difficulty filters
 - Local `CCGameManager.dat` import for completed platformers and moon count
 - Moon Check for official non-catalog moons, historical/unobtainable sources, and stale reward values
+- Level names and creators link directly to GDBrowser
+- Stats show remaining levels by difficulty and by moon reward
 - Local MoonGrinder save import/export
 - Standalone public-safe Time Reviewer for community estimate corrections
 
@@ -49,7 +54,7 @@ MoonGrinder/
       moon.png
       difficulty/
     js/
-      v2/              # deployed website modules
+      v2/              # deployed website modules, including gd-lists.js
   data/
     catalog.json       # sanitized public website catalog
     time_review.json   # anonymized completion-time samples
@@ -57,6 +62,10 @@ MoonGrinder/
   contributions/
     time-fixes/        # generated community correction proposals
   tools/
+    gd_list_bridge.py
+    gd_list_bridge.bat
+    gd_list_bridge.sh
+    GD_LIST_UPLOADER.md
     time_reviewer.py
     review_times.bat
     review_times.sh
@@ -90,6 +99,24 @@ macOS/Linux:
 Contributors can search every level, focus on automatically flagged levels, edit/remove/add anonymized completion times, change the effective P30, and save all staged changes as one JSON file under `contributions/time-fixes/`. See [CONTRIBUTING.md](CONTRIBUTING.md) for the PR workflow.
 
 The public review dataset intentionally contains no player usernames, account IDs, credentials, or personal progress.
+
+## Geometry Dash List uploader
+
+The GD Lists tab can build lists directly from planner results, grinding blocks, automatic shortest/efficiency presets, or a manual draft. Uploading requires the local helper so account credentials never need to be typed into or stored by the GitHub Pages site.
+
+Windows:
+
+```text
+tools\gd_list_bridge.bat
+```
+
+macOS/Linux:
+
+```bash
+./tools/gd_list_bridge.sh
+```
+
+The helper binds only to `127.0.0.1`, reads the logged-in account data from the local `CCGameManager.dat`, and returns no GJP2/authentication data to the browser. New list drafts default to Unlisted so they can be checked before being made Public. See [tools/GD_LIST_UPLOADER.md](tools/GD_LIST_UPLOADER.md) for setup and troubleshooting.
 
 ## Update the public catalog
 

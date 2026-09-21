@@ -1,10 +1,10 @@
-console.info('MoonGrinder build 2026-09-19-github-ready');
+console.info('MoonGrinder build 2026-09-21-gd-lists');
 import { ROUTES } from './constants.js';
 import { loadCatalog } from './catalog.js';
 import { renderRoute } from './views.js';
 import { clearState, loadState, saveState, validateImportedState } from './storage.js';
-import { copyText, difficultyAsset, downloadJson, escapeHtml, formatDuration, formatNumber, parseTimeInput, uuid } from './utils.js';
-import { moonReward, ratingBadge, statusBadge } from './components.js';
+import { copyText, difficultyAsset, difficultyBaseAsset, downloadJson, escapeHtml, formatDuration, formatNumber, parseTimeInput, uuid } from './utils.js';
+import { creatorExternalLink, levelExternalLink, moonReward, ratingBadge, statusBadge } from './components.js';
 import { readGeometryDashSave } from './gd-save.js';
 
 class MoonGrinderWeb {
@@ -68,6 +68,17 @@ class MoonGrinderWeb {
         case 'toggle-completed':
           this.toggleCompleted(id);
           break;
+        case 'gd-list-current-plan':
+          if (this.currentPlan?.levels?.length) this.openGdListDraft(this.currentPlan.levels, 'MoonGrinder Plan', 'Planner result');
+          else this.toast('Generate a planner result first.', 'error');
+          break;
+        case 'gd-list-from-block': {
+          const index = Number(action.dataset.blockIndex);
+          const block = this.currentBlocks?.[index];
+          if (block?.levels?.length) this.openGdListDraft(block.levels, `Grinding Block ${index + 1}`, `Grinding block ${index + 1}`);
+          else this.toast('That grinding block is no longer available.', 'error');
+          break;
+        }
         default:
           break;
       }
@@ -166,7 +177,7 @@ class MoonGrinderWeb {
         <button class="modal-close" type="button" data-modal-close="true" aria-label="Close">Close</button>
         <header class="level-modal-header">
           <img class="difficulty-face difficulty-face-xl" src="${difficultyAsset(level.difficulty, level.rating)}" alt="${escapeHtml(level.rating || 'Rated')} ${escapeHtml(level.difficulty)} difficulty icon" onerror="this.onerror=null;this.src='${difficultyBaseAsset(level.difficulty)}'">
-          <div><span class="eyebrow">${escapeHtml(level.difficulty)}</span><h2 id="level-modal-title">${escapeHtml(level.name)}</h2><p>by ${escapeHtml(level.creator || 'Unknown creator')} · ID ${escapeHtml(level.level_id)}</p><div class="modal-badges">${ratingBadge(level.rating)}${statusBadge(status)}${moonReward(level.moons, 'large')}</div></div>
+          <div><span class="eyebrow">${escapeHtml(level.difficulty)}</span><h2 id="level-modal-title">${levelExternalLink(level, 'gd-external-link gd-level-title-link')}</h2><p>by ${creatorExternalLink(level)} · ID ${escapeHtml(level.level_id)}</p><div class="modal-badges">${ratingBadge(level.rating)}${statusBadge(status)}${moonReward(level.moons, 'large')}</div></div>
         </header>
         <div class="modal-metric-grid modal-metric-grid-two">
           <div><span>Estimated time</span><strong>${formatDuration(effective.seconds)}</strong><small>${effective.custom ? 'Using your custom time' : 'Used for planning'}</small></div>
@@ -275,6 +286,27 @@ class MoonGrinderWeb {
     }
     this.save();
     if (rerender) this.render();
+  }
+
+  openGdListDraft(levels, name = 'MoonGrinder List', source = 'MoonGrinder') {
+    const ids = (levels || [])
+      .map((level) => String(level?.level_id ?? level ?? '').trim())
+      .filter((id, index, all) => id && all.indexOf(id) === index);
+    if (!ids.length) {
+      this.toast('There are no levels to send to GD Lists.', 'error');
+      return;
+    }
+    if (ids.length > 100) this.toast(`Geometry Dash lists allow 100 levels. The first 100 of ${ids.length} will be loaded.`);
+    this.viewState.gdListDraft = {
+      levelIds: ids,
+      suggestedName: String(name || 'MoonGrinder List'),
+      source: String(source || 'MoonGrinder'),
+      createdAt: new Date().toISOString(),
+    };
+    // Force the GD Lists tab to consume this newly staged draft even when the
+    // user already had an older draft open earlier in the session.
+    this.viewState.gdListWorkingIds = null;
+    this.navigate('gd-lists');
   }
 
   startSession(levels, name = 'Grinding Session') {

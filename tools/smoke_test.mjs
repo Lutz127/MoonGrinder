@@ -3,6 +3,7 @@ import { CatalogModel } from '../assets/js/v2/catalog.js';
 import { DEMON_DIFFICULTIES } from '../assets/js/v2/constants.js';
 import { defaultState } from '../assets/js/v2/storage.js';
 import { buildBlocks, buildMoonGoalPlan, buildTimeBudgetPlan, plannerPool } from '../assets/js/v2/planner.js';
+import { buildGdListPreset } from '../assets/js/v2/gd-lists.js';
 
 const source = JSON.parse(fs.readFileSync(new URL('../data/catalog.json', import.meta.url), 'utf8'));
 const catalog = new CatalogModel(source);
@@ -67,6 +68,30 @@ if (!hardRewards.has(4) || !hardRewards.has(5)) {
   throw new Error('Whole Hard filter no longer contains both 4- and 5-moon levels.');
 }
 
+// GD Lists automatic presets must only use unfinished, non-excluded catalog levels
+// and must respect the 100-level Geometry Dash limit.
+const shortestList = buildGdListPreset(catalog, state, 'shortest', { includeDeferred: true }, 100);
+const efficientList = buildGdListPreset(catalog, state, 'efficiency', { includeDeferred: true }, 100);
+if (shortestList.length !== 100 || efficientList.length !== 100) {
+  throw new Error('GD List presets did not produce 100 levels.');
+}
+for (const list of [shortestList, efficientList]) {
+  if (list.some((level) => state.progress.completed[String(level.level_id)] || state.progress.excluded.includes(String(level.level_id)))) {
+    throw new Error('GD List preset included a completed or excluded level.');
+  }
+  if (list.some((level) => !catalog.timeFor(level, state).seconds)) {
+    throw new Error('GD List automatic preset included a level without an estimated time.');
+  }
+}
+const noDemonList = buildGdListPreset(catalog, noDemonsState, 'shortest', { includeDeferred: true }, 100);
+if (noDemonList.some((level) => DEMON_DIFFICULTIES.includes(level.difficulty))) {
+  throw new Error('GD List preset ignored planner demon exclusions.');
+}
+const hardFourList = buildGdListPreset(catalog, state, 'shortest', { difficultyMoonGroups: ['Hard|4'], includeDeferred: true }, 100);
+if (!hardFourList.length || hardFourList.some((level) => level.difficulty !== 'Hard' || Number(level.moons) !== 4)) {
+  throw new Error('GD List split difficulty filters are not working.');
+}
+
 const forbidden = ['gjp2', 'password', 'udid', 'uuid', 'account_id', 'username', 'reference_player', 'leaderboard', 'tracked', 'manual_duration_seconds'];
 const serialized = JSON.stringify(source).toLowerCase();
 for (const key of forbidden) {
@@ -80,4 +105,5 @@ console.log(`100 moon goal: ${target.levels.length} levels, ${target.totalMoons}
 console.log(`60 minute blocks: ${blocks.length}`);
 console.log(`Planner demon exclusions: ${DEMON_DIFFICULTIES.length} tiers tested`);
 console.log('Hard/Harder/Insane reward splits: 6 groups tested');
+console.log(`GD List presets: ${shortestList.length} shortest + ${efficientList.length} efficient tested`);
 console.log('Smoke test passed.');

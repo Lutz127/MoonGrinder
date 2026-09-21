@@ -13,6 +13,15 @@ export function escapeHtml(value) {
     .replaceAll("'", '&#039;');
 }
 
+
+export function gdBrowserLevelUrl(levelId) {
+  return `https://gdbrowser.com/${encodeURIComponent(String(levelId ?? '').trim())}`;
+}
+
+export function gdBrowserUserUrl(creator) {
+  return `https://gdbrowser.com/u/${encodeURIComponent(String(creator ?? '').trim())}`;
+}
+
 export function formatNumber(value, digits = 0) {
   return new Intl.NumberFormat(undefined, {
     maximumFractionDigits: digits,

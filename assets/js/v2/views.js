@@ -1,6 +1,8 @@
 import { DEMON_DIFFICULTIES, DIFFICULTIES, PLANNER_DIFFICULTY_MOON_GROUPS, RATINGS, STRATEGIES } from './constants.js';
 import {
+  creatorExternalLink,
   difficultyFace,
+  levelExternalLink,
   emptyState,
   levelCard,
   levelRow,
@@ -18,12 +20,14 @@ import { buildBlocks, buildMoonGoalPlan, buildTimeBudgetPlan } from './planner.j
 import { debounce, escapeHtml, formatDate, formatDuration, formatNumber, parseWholeNumber } from './utils.js';
 import { MOON_AUDIT_LEVELS, MOON_AUDIT_SECTION_LABELS, MOON_AUDIT_SOURCE_NAME } from './moon-audit-data.js';
 import { renderMoonCheck } from './moon-check.js';
+import { renderGdLists } from './gd-lists.js';
 
 export function renderRoute(app, route) {
   switch (route) {
     case 'planner': return renderPlanner(app);
     case 'catalog': return renderCatalog(app);
     case 'grind': return renderGrind(app);
+    case 'gd-lists': return renderGdLists(app);
     case 'progress': return renderProgress(app);
     case 'moon-check': return renderMoonCheck(app);
     case 'stats': return renderStats(app);
@@ -107,7 +111,7 @@ function blockRow(block, index) {
   return `<article class="block-row">
     <div class="block-index">${String(index + 1).padStart(2, '0')}</div>
     <div class="block-info"><strong>${formatNumber(block.levels.length)} levels</strong><span>${formatDuration(block.totalSeconds, { compact: true })} · ${formatNumber(block.totalMoons)} moons · ${formatNumber(block.rate, 2)}/min</span></div>
-    <button class="button button-primary button-small" data-action="start-block" data-block-index="${index}">Start</button>
+    <div class="block-row-actions"><button class="button button-primary button-small" data-action="start-block" data-block-index="${index}">Start</button><button class="button button-ghost button-small" data-action="gd-list-from-block" data-block-index="${index}">GD list</button></div>
   </article>`;
 }
 
@@ -300,7 +304,7 @@ function renderPlanOutput(app, plan) {
     : `${escapeHtml(STRATEGIES[plan.strategy] || 'Planner')} inside the selected time budget.`;
   output.innerHTML = `
     ${planHeader(plan, plan.kind === 'goal' ? 'Moon goal' : 'Time budget', goalDetail)}
-    <div class="plan-actions"><button class="button button-primary" id="start-current-plan">Start grinding</button><button class="button button-secondary" id="copy-current-plan">Copy level IDs</button></div>
+    <div class="plan-actions"><button class="button button-primary" id="start-current-plan">Start grinding</button><button class="button button-secondary" data-action="gd-list-current-plan">Make GD list</button><button class="button button-secondary" id="copy-current-plan">Copy level IDs</button></div>
     ${planLevelList(app.catalog, plan, app.state)}
   `;
   output.querySelector('#start-current-plan').addEventListener('click', () => app.startSession(plan.levels, plan.kind === 'goal' ? 'Moon Goal' : 'Quick Grind'));
@@ -457,8 +461,8 @@ function renderGrind(app) {
       <div class="grind-face">${difficultyFace(current, 'xl')}</div>
       <div class="grind-current-main">
         <span class="eyebrow">Current level</span>
-        <h2>${escapeHtml(current.name)}</h2>
-        <p>by ${escapeHtml(current.creator || 'Unknown creator')} · ID ${escapeHtml(current.level_id)}</p>
+        <h2>${levelExternalLink(current, 'gd-external-link gd-level-title-link')}</h2>
+        <p>by ${creatorExternalLink(current)} · ID ${escapeHtml(current.level_id)}</p>
         <div class="grind-meta">${moonReward(current.moons, 'large')} ${ratingBadge(current.rating)} <span class="difficulty-text">${escapeHtml(current.difficulty)}</span></div>
         <div class="grind-estimate"><span>Estimated clear time</span><strong>${formatDuration(time.seconds)}</strong></div>
       </div>
@@ -476,7 +480,7 @@ function renderGrind(app) {
       <div class="upcoming-list">${nextIds.map((id, offset) => {
         const level = app.catalog.get(id);
         if (!level) return '';
-        return `<div class="upcoming-row"><span>${index + offset + 2}</span>${difficultyFace(level, 'xs')}<button data-action="level-detail" data-level-id="${level.level_id}"><strong>${escapeHtml(level.name)}</strong><small>${formatDuration(app.catalog.timeFor(level, app.state).seconds, { compact: true })} · ${formatNumber(level.moons)} moons</small></button></div>`;
+        return `<div class="upcoming-row"><span>${index + offset + 2}</span>${difficultyFace(level, 'xs')}<div class="upcoming-level-identity"><strong>${levelExternalLink(level)}</strong><small>by ${creatorExternalLink(level)} · ${formatDuration(app.catalog.timeFor(level, app.state).seconds, { compact: true })} · ${formatNumber(level.moons)} moons</small></div><button class="button button-ghost button-small" data-action="level-detail" data-level-id="${level.level_id}">Details</button></div>`;
       }).join('') || '<p class="muted">This is the last level in the queue.</p>'}</div>
     </section>
     <p class="keyboard-help">Keyboard shortcuts while this page is open: C complete, S skip, U undo, P pause, I copy Level ID.</p>
@@ -838,9 +842,25 @@ function renderStats(app) {
   const efficient = catalog.sort(timed, 'efficiency', state).slice(0, 10);
   const personal = catalog.progressSummary(state);
   const total = Number(stats.total_levels || catalog.levels.length) || 1;
+  const completedIds = new Set(Object.keys(state.progress.completed || {}).map(String));
+
+  const byDifficulty = DIFFICULTIES
+    .filter((difficulty) => difficulty !== 'N/A' || catalog.levels.some((level) => level.difficulty === 'N/A'))
+    .map((difficulty) => {
+      const levels = catalog.levels.filter((level) => level.difficulty === difficulty);
+      const completed = levels.filter((level) => completedIds.has(String(level.level_id))).length;
+      return { label: difficulty, total: levels.length, completed, missing: Math.max(0, levels.length - completed) };
+    })
+    .filter((row) => row.total > 0);
+
+  const byMoons = Array.from({ length: 10 }, (_, index) => index + 1).map((moons) => {
+    const levels = catalog.levels.filter((level) => Number(level.moons) === moons);
+    const completed = levels.filter((level) => completedIds.has(String(level.level_id))).length;
+    return { label: `${moons} moon${moons === 1 ? '' : 's'}`, total: levels.length, completed, missing: Math.max(0, levels.length - completed) };
+  }).filter((row) => row.total > 0);
 
   app.main.innerHTML = `
-    <section class="page-intro stats-intro"><h1>Stats</h1></section>
+    <section class="page-intro stats-intro"><h1>Stats</h1><p>Catalog coverage and exactly what you still have left to beat.</p></section>
     <section class="stat-grid four">
       ${statCard('Rated platformers', formatNumber(total), 'Levels in the catalog', 'purple')}
       ${statCard('Timed levels', formatNumber(timed.length), `${formatNumber((timed.length / total) * 100, 1)}% ready for planning`, 'cyan')}
@@ -849,6 +869,10 @@ function renderStats(app) {
     </section>
 
     <div class="stats-sections">
+      <section class="split-layout stats-split stats-missing-split">
+        <div class="panel">${sectionHeading('Missing by difficulty', 'How many current rated platformers you still have left in each difficulty.')}<div class="remaining-breakdown">${remainingBreakdownRows(byDifficulty)}</div></div>
+        <div class="panel">${sectionHeading('Missing by moon reward', 'How many current rated platformers you still have left at each moon value.')}<div class="remaining-breakdown">${remainingBreakdownRows(byMoons)}</div></div>
+      </section>
       <section class="split-layout stats-split">
         <div class="panel">${sectionHeading('Difficulty distribution')}<div class="bar-chart">${distributionBars(stats.difficulty_counts || {}, total)}</div></div>
         <div class="panel">${sectionHeading('Rating distribution')}<div class="bar-chart">${distributionBars(stats.rating_counts || {}, total)}</div></div>
@@ -863,6 +887,17 @@ function renderStats(app) {
       </section>
     </div>
   `;
+}
+
+function remainingBreakdownRows(rows) {
+  return rows.map((row) => {
+    const donePercent = row.total ? row.completed / row.total * 100 : 0;
+    return `<div class="remaining-row">
+      <div class="remaining-row-label"><strong>${escapeHtml(row.label)}</strong><span>${formatNumber(row.completed)} of ${formatNumber(row.total)} completed</span></div>
+      <div class="remaining-row-progress"><div class="remaining-track"><div class="remaining-fill" style="width:${donePercent.toFixed(2)}%"></div></div></div>
+      <div class="remaining-row-count"><strong>${formatNumber(row.missing)}</strong><span>missing</span></div>
+    </div>`;
+  }).join('');
 }
 
 function distributionBars(counts, total, numericLabels = false) {
